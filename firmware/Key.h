@@ -53,6 +53,7 @@ class Key {
         static uint8_t currentMod;
         static uint8_t remoteMod;
         static uint8_t bufferposition;
-
+        static bool layerPushed;
+        static uint8_t *layerKey;
 };
 

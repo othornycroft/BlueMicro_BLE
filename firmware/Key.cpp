@@ -146,39 +146,34 @@ void Key::copyRemoteReport()
 /**************************************************************************************************************************/
 // Scan for layer changes - must do this first.
 /**************************************************************************************************************************/
-
 bool Key::updateLayer()
  {
-  uint8_t layer = 0;                    // Layer selection is always done on layer 0
   uint8_t prevlayer = localLayer;       // remember last layer
-  localLayer = 0;                       // always reset local layer so that layer 0 can be selected if no layers keys are "pressed"
-  
+  bool layerChanged = false;
+
   for(int row = 0; row < MATRIX_ROWS; ++row) {
     for (int col = 0; col < MATRIX_COLS; ++col) {
-      uint8_t keycode =  keymaps[layer][row][col]; // get the key...
-      if (matrix[1][row][col] != 1){keycode =0;}  
-        switch(keycode){ 
-            case LAYER_0:   localLayer = 0;  break;
-            case LAYER_1:   localLayer = 1;  break;
-            case LAYER_2:   localLayer = 2;  break;
-            case LAYER_3:   localLayer = 3;  break;
-            case LAYER_4:   localLayer = 4;  break;
-            case LAYER_5:   localLayer = 5;  break;
-            case LAYER_6:   localLayer = 6;  break;
-            case LAYER_7:   localLayer = 7;  break;
-            case LAYER_8:   localLayer = 8;  break;
-            case LAYER_9:   localLayer = 9;  break;
-            case LAYER_A:   localLayer = 10;  break;
-            case LAYER_B:   localLayer = 11;  break;
-            case LAYER_C:   localLayer = 12;  break;
-            case LAYER_D:   localLayer = 13;  break;
-            case LAYER_E:   localLayer = 14;  break;
-            case LAYER_F:   localLayer = 15;  break;
-           }
-       }
+      uint8_t keycode =  keymaps[prevlayer][row][col]; // get the key...
+      if (matrix[1][row][col] != 1){continue;}
+      if (keycode >= LAYER_0 && keycode < TOGGLE_0) {
+        layerChanged = true;
+        layerPushed = true;
+        localLayer = keycode - LAYER_0;
+        layerKey = &matrix[1][row][col];
+      } else if (keycode >= TOGGLE_0) {
+        layerChanged = true;
+        localLayer = keycode - TOGGLE_0;
+      }
     }
-    layerChanged = (prevlayer != localLayer);
-    return layerChanged;
+  }
+
+  if (layerPushed && !(*layerKey)) {
+    localLayer = 0;
+    layerPushed = false;
+    layerKey = false;
+  }
+
+  return layerChanged;
  }
 
 /**************************************************************************************************************************/
@@ -197,7 +192,7 @@ bool Key::updateLayer()
     for (int col = 0; col < MATRIX_COLS; ++col) {
       uint8_t keycode =  keymaps[layer][row][col]; // get the key...
       if (matrix[1][row][col] != 1){keycode =0;}     
-            switch(keycode){ 
+            switch(keycode){
             case KC_LCTRL:  currentMod  = currentMod  | 1; val = true; break;
             case KC_LSHIFT: currentMod  = currentMod  | 2; val = true; break;
             case KC_LALT:   currentMod  = currentMod  | 4; val = true; break;
@@ -223,33 +218,32 @@ bool Key::updateLayer()
   updateLayer();
   updateModifiers();
  
-if (localLayer < remoteLayer)
+  if (localLayer < remoteLayer)
   {
     layer = remoteLayer;
   }
 
 
-   for(int row = 0; row < MATRIX_ROWS; ++row) {
+  for(int row = 0; row < MATRIX_ROWS; ++row) {
     for (int col = 0; col < MATRIX_COLS; ++col) {
       uint8_t keycode =  keymaps[layer][row][col]; // get the key...
       if (matrix[1][row][col] != 1){keycode =0;}
-      
-                switch(keycode){ 
-            case KC_A ... KC_EXSEL: // key pressed
-                 currentReport[bufferposition] = keycode;
-                 bufferposition++;
-                 break;
-           }
-          if (bufferposition>6){bufferposition=1;} // lots of keys being pressed - looping around buffer
-      }
+        switch(keycode){
+        case KC_A ... KC_EXSEL: // key pressed
+              currentReport[bufferposition] = keycode;
+              bufferposition++;
+              break;
+        }
+      if (bufferposition>6){bufferposition=1;} // lots of keys being pressed - looping around buffer
     }
-    currentReport[0] = currentMod;
-    currentReport[7] = layer;
+  }
+  currentReport[0] = currentMod;
+  currentReport[7] = layer;
 
-    if((currentReport[0] != 0) | (currentReport[1] != 0)| (currentReport[2] != 0)| (currentReport[3] != 0)| (currentReport[4] != 0)| (currentReport[5] != 0)| (currentReport[6] != 0))
-    {reportEmpty = false;}
-    else
-    {reportEmpty = true;}
+  if((currentReport[0] != 0) | (currentReport[1] != 0)| (currentReport[2] != 0)| (currentReport[3] != 0)| (currentReport[4] != 0)| (currentReport[5] != 0)| (currentReport[6] != 0))
+  {reportEmpty = false;}
+  else
+  {reportEmpty = true;}
     
   return reportEmpty;
 }
@@ -268,4 +262,5 @@ uint8_t Key::currentMod = 0;
 uint8_t Key::matrix[2][MATRIX_ROWS][MATRIX_COLS]  = {0};
 unsigned long Key::timestamps[MATRIX_ROWS][MATRIX_COLS]  = {0};
 uint8_t Key::bufferposition = 0;
-
+bool    Key::layerPushed = false;
+uint8_t *Key::layerKey = NULL;
